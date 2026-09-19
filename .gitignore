@@ -4,3 +4,6 @@ __pycache__/
 .streamlit/
 figures/*.png
 .shot.log
+
+# Phase 2: 40 MB of float vectors, regenerated in minutes by run_phase2.py.
+data/embeddings/

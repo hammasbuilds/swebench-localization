@@ -2,7 +2,8 @@
 <p align="center"><i>Is the answer even in the question?</i></p>
 
 <p align="center">
-  <a href="docs/RESULTS.md">Results</a> &middot;
+  <a href="docs/RESULTS.md">Phase 1 results</a> &middot;
+  <a href="docs/RESULTS-PHASE2.md">Phase 2 results</a> &middot;
   <a href="docs/METHOD.md">Method</a> &middot;
   <a href="docs/PROBLEMS.md">Problems hit</a> &middot;
   <a href="docs/LIMITATIONS.md">Limitations</a> &middot;
@@ -11,10 +12,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/hammas159/swebench-localization/actions/workflows/ci.yml"><img src="https://github.com/hammas159/swebench-localization/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/hammas159/swebench-localization" alt="license"></a>
+  <a href="https://github.com/hammasbuilds/swebench-localization/actions/workflows/ci.yml"><img src="https://github.com/hammasbuilds/swebench-localization/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/hammasbuilds/swebench-localization" alt="license"></a>
   <img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="python">
-  <img src="https://img.shields.io/badge/tests-16%20passing-brightgreen" alt="tests">
+  <img src="https://img.shields.io/badge/tests-45%20passing-brightgreen" alt="tests">
   <img src="https://img.shields.io/badge/data-SWE--bench%20Lite-orange" alt="data">
   <img src="https://img.shields.io/badge/downloads%20needed-1.2%20MB-success" alt="size">
   <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/badge/lint-ruff-261230" alt="ruff"></a>
@@ -84,6 +85,36 @@ wins.
 
 ---
 
+## Phase 2: so can anything find the file?
+
+Four retrievers, same 300 instances, same candidate set - every source file in the
+repository. Scored as recall@10, cut by the Phase 1 tiers.
+
+| Tier | n | BM25 | embeddings | 14B locator | 14B reranking BM25 |
+|---|---:|---:|---:|---:|---:|
+| `full_path` | 51 | 74.5% | 56.9% | **98.0%** | 86.3% |
+| `stem_only` | 77 | 50.6% | 59.7% | **84.4%** | 70.1% |
+| `not_mentioned` | 154 | **8.4%** | 29.2% | **55.8%** | 17.5% |
+
+**BM25 falls from 74.5% to 8.4%.** On the half of the benchmark that never names the file,
+lexical matching has nothing to match - so a single SWE-bench number largely rewards string
+matching, and the other half is being graded on a retrieval failure.
+
+### The model's advantage is knowing the codebase, not ranking it
+
+The same 14B scores 55.8% on `not_mentioned` when it names files freely and 17.5% when it
+may only reorder BM25's top-30. It is not a bad reranker - it realises **92.1%** of the
+ceiling it is handed. The problem is the ceiling: on that tier **BM25's entire top-30
+contains the answer just 23.4% of the time**, and the model naming files outright beats
+that outright.
+
+It also invents **20.9%** of the paths it names, which is why that is reported beside the
+recall rather than under it.
+
+[Full tables, the tuning sweep, and what was tested rather than assumed &rarr;](docs/RESULTS-PHASE2.md)
+
+---
+
 ## Why this matters
 
 A SWE-bench agent that scores badly is usually assumed to need a bigger model. This says:
@@ -129,7 +160,9 @@ badly or was simply shown the wrong file — and a bigger model fed the wrong fi
 | &#128269; **[Method](docs/METHOD.md)** | Gold file extraction, the matching ladder, determinism |
 | &#128736; **[Problems hit](docs/PROBLEMS.md)** | A hardcoded path, a broken CI cache, and an overcounting regex |
 | &#9888; **[Limitations](docs/LIMITATIONS.md)** | What Phase 1 does and does not establish |
-| &#128640; **[Future work](docs/FUTURE.md)** | Phase 2 retrieval scoring, BM25 vs embeddings vs LLM |
+| &#128202; **[Phase 2 results](docs/RESULTS-PHASE2.md)** | Four retrievers scored as recall@k, cut by discoverability tier |
+| &#128295; **[Phase 2 method](docs/PHASE2.md)** | Candidate sets, BM25 tuning, the two LLM arms |
+| &#128640; **[Future work](docs/FUTURE.md)** | Patch validity, the memorisation test, full SWE-bench |
 
 ---
 
@@ -137,7 +170,11 @@ badly or was simply shown the wrong file — and a bigger model fed the wrong fi
 
 &#9989; **Phase 1 complete** - benchmark discoverability measured.
 
-&#128308; **Phase 2 not started** - retrieval baselines scored as recall@k. See
+&#9989; **Phase 2 complete** - BM25, embeddings, an LLM locator and an LLM reranker scored
+as recall@k. See [RESULTS-PHASE2.md](docs/RESULTS-PHASE2.md).
+
+&#128308; **Phase 3 not started** - conditioning patch validity on localization, and testing
+the memorisation hypothesis on repositories the model cannot have seen. See
 [FUTURE.md](docs/FUTURE.md).
 
 ## Layout
@@ -145,16 +182,21 @@ badly or was simply shown the wrong file — and a bigger model fed the wrong fi
 ```
 src/data.py               load from HF cache, parse gold files from patches
 src/mention_analysis.py   discoverability tiers + per-repo breakdown
-tests/                    16 tests, no network, no dataset
+src/trees.py              repository file listings via the Trees API, cached
+src/retrieval.py          BM25, embeddings, LLM locator, LLM reranker
+src/evaluate.py           recall@k by tier, fabrication rate, path resolution
+run_phase2.py             Phase 2 driver, resumable per instance
+tests/                    45 tests, no network, no dataset, no model
 docs/                     detailed documentation
 data/sources.json         provenance, counts, checksum
 ```
 
 ## Stack
 
-`Python 3.11+` &middot; `pandas` &middot; `pyarrow`
-&middot; `pytest` &middot; `ruff` &middot; `GitHub Actions` &middot; dataset via
-`Hugging Face Hub`
+`Python 3.11+` &middot; `pandas` &middot; `pyarrow` &middot; `Okapi BM25 (pure Python)`
+&middot; `nomic-embed-text` &middot; `qwen2.5-coder:14b` via `Ollama`
+&middot; `GitHub Trees API` &middot; `pytest` &middot; `ruff` &middot; `GitHub Actions`
+&middot; dataset via `Hugging Face Hub`
 
 ## Keywords
 

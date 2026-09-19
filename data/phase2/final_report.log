@@ -1,0 +1,93 @@
+repos cached      : 12/12
+per-commit repairs: 22
+instances scorable: 300
+gold file present : 299/300 (99.7%)   <- ceiling for every retriever
+
+bm25: 278 done, 22 to go
+  10/22  0.0s/instance  eta 0 min
+  20/22  0.0s/instance  eta 0 min
+  22/22  0.0s/instance  eta 0 min
+
+embed: 278 done, 22 to go
+  10/22  0.1s/instance  eta 0 min
+  20/22  0.1s/instance  eta 0 min
+  22/22  0.1s/instance  eta 0 min
+
+llm: 300 done, 0 to go
+
+llm_rerank: 278 done, 22 to go
+  10/22  6.7s/instance  eta 1 min
+  20/22  6.1s/instance  eta 0 min
+  22/22  5.9s/instance  eta 0 min
+
+==========================================================================
+RECALL@K - overall
+==========================================================================
+  retriever                  @1       @3       @5      @10      @20
+  ----------------------------------------------------------------------
+  bm25                    9.7%    19.7%    24.3%    34.0%    43.7% 
+  embed                  14.7%    27.3%    33.7%    43.0%    53.7% 
+  llm                    47.7%    64.0%    70.3%    72.7%    72.7% 
+  llm_rerank             36.7%    42.3%    43.7%    46.7%    46.7% 
+
+==========================================================================
+RECALL@10 - by how discoverable the gold file was (Phase 1 tiers)
+==========================================================================
+
+  bm25
+    full_path        n=  51   74.5%  #####################
+    basename         n=  18   66.7%  ###################
+    stem_only        n=  77   50.6%  ##############
+    not_mentioned    n= 154    8.4%  ##
+
+  embed
+    full_path        n=  51   56.9%  ################
+    basename         n=  18   50.0%  ##############
+    stem_only        n=  77   59.7%  #################
+    not_mentioned    n= 154   29.2%  ########
+
+  llm
+    full_path        n=  51   98.0%  ###########################
+    basename         n=  18   94.4%  ##########################
+    stem_only        n=  77   84.4%  ########################
+    not_mentioned    n= 154   55.8%  ################
+
+  llm_rerank
+    full_path        n=  51   86.3%  ########################
+    basename         n=  18   83.3%  #######################
+    stem_only        n=  77   70.1%  ####################
+    not_mentioned    n= 154   17.5%  #####
+
+==========================================================================
+RECALL@10 - by repository
+==========================================================================
+  repo                            n        bm25       embed         llm  llm_rerank
+  ----------------------------------------------------------------------
+  django/django                 114      10.5%       35.1%       77.2%       22.8% 
+  sympy/sympy                    77      45.5%       50.6%       67.5%       59.7% 
+  scikit-learn/scikit-learn      23      60.9%       52.2%       73.9%       73.9% 
+  matplotlib/matplotlib          23      52.2%       26.1%       78.3%       69.6% 
+  pytest-dev/pytest              17      47.1%       52.9%       58.8%       58.8% 
+  sphinx-doc/sphinx              16      25.0%       56.2%       68.8%       37.5% 
+  pylint-dev/pylint               6      33.3%       16.7%       33.3%       33.3% 
+  psf/requests                    6      33.3%       50.0%       83.3%       50.0% 
+  astropy/astropy                 6      83.3%       83.3%       83.3%       83.3% 
+  pydata/xarray                   5      40.0%       40.0%       80.0%       60.0% 
+  mwaskom/seaborn                 4      75.0%       25.0%       75.0%       75.0% 
+  pallets/flask                   3     100.0%       66.7%      100.0%      100.0% 
+
+==========================================================================
+LLM PATH VALIDITY - does the model name files that exist?
+==========================================================================
+  paths named      : 1984
+  paths that exist : 1570  (79.1%)
+  fabricated       : 20.9%
+
+==========================================================================
+RERANKER CEILING - gold file present in the BM25 top-30 it was given
+==========================================================================
+  ceiling (BM25 recall@30) : 50.7%
+  reranker recall@10          : 46.7%
+  share of ceiling realised   : 92.1%
+
+wrote D:\github\swebench-localization\data\phase2\summary.json
