@@ -13,8 +13,19 @@ from pathlib import Path
 
 import pandas as pd
 
-HF_REPO = "princeton-nlp/SWE-bench_Lite"
-CACHE_DIR_NAME = "datasets--princeton-nlp--SWE-bench_Lite"
+# Lite is 300 instances, Full is 2,294 of the same kind from the same repositories.
+# The headline here - how often the issue text names the file you must change - is a
+# property of how people write bug reports, and 300 is a sample of that rather than the
+# population. Set SWEBENCH_SPLIT=full to read the larger one; the code path is identical
+# because the two parquets share a schema.
+SPLITS = {
+    "lite": ("princeton-nlp/SWE-bench_Lite", "datasets--princeton-nlp--SWE-bench_Lite"),
+    "full": ("princeton-nlp/SWE-bench", "datasets--princeton-nlp--SWE-bench"),
+}
+SPLIT = os.environ.get("SWEBENCH_SPLIT", "lite").lower()
+if SPLIT not in SPLITS:
+    raise SystemExit(f"SWEBENCH_SPLIT must be one of {sorted(SPLITS)}, got {SPLIT!r}")
+HF_REPO, CACHE_DIR_NAME = SPLITS[SPLIT]
 
 # A unified diff names the file twice; the b/ side is the post-image, which is the
 # one that exists after a fix (the a/ side is /dev/null for added files).

@@ -59,8 +59,17 @@ def report(data: list[Instance], field: str, text_of) -> Counter:
 
 
 def main() -> None:
-    data = load()
-    print(f"instances: {len(data)}  (all single-file fixes)")
+    every = load()
+    # Lite is single-file by construction; Full is not. `tier_for` reads gold_files[0],
+    # so a multi-file fix would be scored on whichever file the diff happened to list
+    # first - and would silently be counted as if the whole fix were discoverable from it.
+    # Filtering keeps the two splits measuring the same thing, and the exclusion is
+    # printed rather than assumed.
+    data = [i for i in every if i.is_single_file]
+    dropped = len(every) - len(data)
+    print(f"instances: {len(data)} single-file fixes")
+    if dropped:
+        print(f"  {dropped} multi-file instances excluded - gold_files[0] is not the fix")
 
     report(data, "problem_statement", lambda d: d.problem_statement)
     report(data, "problem_statement + hints", lambda d: d.problem_statement + "\n" + d.hints_text)

@@ -23,7 +23,7 @@
 
 ---
 
-> ### 51.3% of SWE-bench Lite never names the file you have to fix.
+> ### Half of SWE-bench never names the file you have to fix - 51.3% of Lite, 48.3% of Full.
 
 SWE-bench is reported as **one number**. But solving an instance needs two different
 things - **find the file**, then **write the patch** - and a single score cannot say which
@@ -37,24 +37,36 @@ fixes.
 
 ## The result
 
-All 300 instances. Every one is a single-file fix, so localization is exactly *"rank the
-one correct file first"*.
+Measured on both splits. Lite is 300 instances and single-file by construction; Full is
+2,294, of which **1,725 are single-file** and are the like-for-like comparison.
 
-| How the gold file is referenced | Instances | Share |
+| How the gold file is referenced | Lite (300) | Full (1,725) |
 |---|---:|---:|
-| Full path, verbatim | 51 | 17.0% |
-| Filename only | 18 | 6.0% |
-| Module name only | 77 | 25.7% |
-| **Never mentioned at all** | **154** | **51.3%** |
+| Full path, verbatim | 17.0% | 22.0% |
+| Filename only | 6.0% | 4.7% |
+| Module name only | 25.7% | 25.0% |
+| **Never mentioned at all** | **51.3%** | **48.3%** |
 
-### Two more findings that fell out of it
+**The finding survives 5.75x the data**, moving three points. Roughly half of SWE-bench
+issues never name the file that has to change, on either split, and Lite is slightly the
+more pessimistic of the two.
 
-**Hints change the task.** Including `hints_text` drops "never mentioned" from **51.3% to
-38.0%** and doubles the full-path cases. Results using hints are not comparable to results
-without them - and papers do not always say which they used.
+### Three more findings that fell out of it
 
-**The aggregate score hides a repo effect.** Difficulty ranges from **astropy 16.7%** to
-**sphinx 87.5%**, and `django/django` alone is 38% of the benchmark.
+**Hints change the task.** Including `hints_text` drops "never mentioned" from 51.3% to
+38.0% on Lite, and from 48.3% to **36.3%** on Full, roughly doubling the full-path cases
+either way. Results using hints are not comparable to results without them - and papers do
+not always say which they used.
+
+**The aggregate score hides a repo effect.** On Lite, difficulty ranges from astropy 16.7%
+to sphinx 87.5%. On Full the spread narrows to **matplotlib 27.7% - pylint 66.7%**, which
+says most of Lite's extremes were small samples: astropy was 6 instances there and is 68
+here, sphinx 16 against 136. `django/django` is 38% of Lite and 39% of Full either way.
+
+**A quarter of SWE-bench Full needs more than one file changed.** 569 of 2,294 instances
+are multi-file, and Lite contains none of them. Every localization result published on Lite
+is a result about the easier half of the problem, and that is a property of the benchmark
+rather than of any method scored on it.
 
 &#128202; **[Full tables, per-repo breakdown, and the hints comparison &rarr;](docs/RESULTS.md)**
 
@@ -64,13 +76,13 @@ without them - and papers do not always say which they used.
 
 ```mermaid
 flowchart LR
-    A["SWE-bench Lite<br/>300 instances - 1.2 MB"] --> B["parse gold files<br/>from reference patches"]
+    A["SWE-bench Lite 300<br/>or Full 2,294"] --> B["parse gold files<br/>from reference patches"]
     B --> C{"single-file fix?"}
     C -->|"300 / 300"| D["match gold path<br/>against issue text"]
     D --> E["full path 17.0%"]
     D --> F["filename 6.0%"]
     D --> G["module name 25.7%"]
-    D --> H["never mentioned 51.3%"]
+    D --> H["never mentioned<br/>51.3% Lite / 48.3% Full"]
     H --> I["retrieval must<br/>INFER the location"]
 
     style H fill:#dc2626,color:#fff
