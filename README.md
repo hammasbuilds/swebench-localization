@@ -35,7 +35,7 @@ fixes.
 
 ---
 
-## The result
+## Results
 
 Measured on both splits. Lite is 300 instances and single-file by construction; Full is
 2,294, of which **1,725 are single-file** and are the like-for-like comparison.
@@ -51,7 +51,7 @@ Measured on both splits. Lite is 300 instances and single-file by construction; 
 issues never name the file that has to change, on either split, and Lite is slightly the
 more pessimistic of the two.
 
-### Three more findings that fell out of it
+### Also measured
 
 **Hints change the task.** Including `hints_text` drops "never mentioned" from 51.3% to
 38.0% on Lite, and from 48.3% to **36.3%** on Full, roughly doubling the full-path cases
@@ -124,19 +124,6 @@ It also invents **20.9%** of the paths it names, which is why that is reported b
 recall rather than under it.
 
 [Full tables, the tuning sweep, and what was tested rather than assumed &rarr;](docs/RESULTS-PHASE2.md)
-
----
-
-## Why this matters
-
-A SWE-bench agent that scores badly is usually assumed to need a bigger model. This says:
-**establish first how much of the failure was ever a retrieval problem.** For 154 of 300
-instances, no amount of code reasoning helps until the right file has been found.
-
-It also makes a model-size comparison far more informative - you can say **which half** the
-bigger model improved.
-
----
 
 ## Reproduce
 
