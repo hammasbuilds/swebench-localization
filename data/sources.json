@@ -7,7 +7,7 @@
       "instances": 300,
       "size_mb": 1.2,
       "source": "local Hugging Face cache - no download required",
-      "cache_path": "C:\\Users\\dell\\.cache\\huggingface\\hub\\datasets--princeton-nlp--SWE-bench_Lite",
+      "cache_path": "C:\\Users\\me\\.cache\\huggingface\\hub\\datasets--princeton-nlp--SWE-bench_Lite",
       "snapshot": "6ec7bb89b9342f664a54a6e0a6ea6501d3437cc2",
       "verified_on": "2026-09-14",
       "verified_by": "src/data.py",

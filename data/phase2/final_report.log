@@ -90,4 +90,4 @@ RERANKER CEILING - gold file present in the BM25 top-30 it was given
   reranker recall@10          : 46.7%
   share of ceiling realised   : 92.1%
 
-wrote D:\github\swebench-localization\data\phase2\summary.json
+wrote C:\src\swebench-localization\data\phase2\summary.json
