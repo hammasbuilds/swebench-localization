@@ -1,106 +1,77 @@
-<h1 align="center">swebench-localization (Python · pandas · PyArrow · HuggingFace Datasets)</h1>
-<p align="center"><i>Is the answer even in the question?</i></p>
+# swebench-localization
 
-<p align="center">
-  <a href="docs/RESULTS.md">Phase 1 results</a> &middot;
-  <a href="docs/RESULTS-PHASE2.md">Phase 2 results</a> &middot;
-  <a href="docs/METHOD.md">Method</a> &middot;
-  <a href="docs/PROBLEMS.md">Problems hit</a> &middot;
-  <a href="docs/LIMITATIONS.md">Limitations</a> &middot;
-  <a href="docs/FUTURE.md">Future work</a> &middot;
-  <a href="#reproduce">Reproduce</a>
-</p>
+[![ci](https://github.com/hammasbuilds/swebench-localization/actions/workflows/ci.yml/badge.svg)](https://github.com/hammasbuilds/swebench-localization/actions/workflows/ci.yml)
+[![license](https://img.shields.io/github/license/hammasbuilds/swebench-localization)](LICENSE)
+![python](https://img.shields.io/badge/python-3.11%2B-blue)
 
-<p align="center">
-  <a href="https://github.com/hammasbuilds/swebench-localization/actions/workflows/ci.yml"><img src="https://github.com/hammasbuilds/swebench-localization/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/hammasbuilds/swebench-localization" alt="license"></a>
-  <img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="python">
-  <img src="https://img.shields.io/badge/tests-45%20passing-brightgreen" alt="tests">
-  <img src="https://img.shields.io/badge/data-SWE--bench%20Lite-orange" alt="data">
-  <img src="https://img.shields.io/badge/downloads%20needed-1.2%20MB-success" alt="size">
-  <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/badge/lint-ruff-261230" alt="ruff"></a>
-</p>
+Solving a SWE-bench instance needs two different things: **find the file**, then **write the
+patch**. We built a tool that measures how often the issue text even names the file that has
+to change, and then scores four retrievers on finding it. It is for anyone building or
+evaluating coding agents who wants to know whether a failure is search or reasoning. **51.3%
+of SWE-bench Lite (48.3% of Full's single-file instances) never mention the file you must
+fix.**
 
----
+## What it does
 
-> ### Half of SWE-bench never names the file you have to fix - 51.3% of Lite, 48.3% of Full.
+- Parses the gold file(s) out of every reference patch, on SWE-bench Lite (300) and Full
+  (2,294; 1,725 single-file).
+- Places each instance on a strict ladder by how the issue refers to the gold file: full
+  path, filename only, module name only (word-boundary match on the stem), or not at all.
+  The strongest form present wins, so each instance lands in exactly one tier.
+- Repeats the measurement with `hints_text` included, and per repository.
+- Phase 2: scores BM25, embeddings (`nomic-embed-text`), an LLM locator and an LLM reranker
+  (`qwen2.5-coder:14b`) as recall@k against every source file in the repository, cut by
+  those tiers, and reports how many of the model's named paths do not exist.
 
-SWE-bench is reported as **one number**. But solving an instance needs two different
-things - **find the file**, then **write the patch** - and a single score cannot say which
-one failed.
+## Sample input / output
 
-A model that fails on an issue that never names the file has not failed at *reasoning
-about code*. It has failed at **search**. Those are different problems with different
-fixes.
+`python src/mention_analysis.py` on SWE-bench Lite (real run, trimmed):
 
----
+```text
+instances: 300 single-file fixes
+
+--- gold file discoverability from problem_statement ---
+  full_path        51   17.0%  #######
+  basename         18    6.0%  ##
+  stem_only        77   25.7%  ##########
+  not_mentioned   154   51.3%  #####################
+  ------------------------------------------------------------
+  mentioned in some form: 146/300 (48.7%)
+  NOT mentioned at all  : 154/300 (51.3%)  <- retrieval must infer these
+
+--- gold file discoverability from problem_statement + hints ---
+  full_path        99   33.0%  #############
+  basename         19    6.3%  ###
+  stem_only        68   22.7%  #########
+  not_mentioned   114   38.0%  ###############
+
+--- 'not mentioned' rate by repo (problem_statement only) ---
+  django/django                n= 114  not-mentioned  54.4%
+  sympy/sympy                  n=  77  not-mentioned  48.1%
+  matplotlib/matplotlib        n=  23  not-mentioned  30.4%
+  sphinx-doc/sphinx            n=  16  not-mentioned  87.5%
+  astropy/astropy              n=   6  not-mentioned  16.7%
+  ...
+```
 
 ## Results
 
-Measured on both splits. Lite is 300 instances and single-file by construction; Full is
-2,294, of which **1,725 are single-file** and are the like-for-like comparison.
-
-| How the gold file is referenced | Lite (300) | Full (1,725) |
+| How the gold file is referenced | Lite (300) | Full (1,725 single-file) |
 |---|---:|---:|
 | Full path, verbatim | 17.0% | 22.0% |
 | Filename only | 6.0% | 4.7% |
 | Module name only | 25.7% | 25.0% |
 | **Never mentioned at all** | **51.3%** | **48.3%** |
 
-**The finding survives 5.75x the data**, moving three points. Roughly half of SWE-bench
-issues never name the file that has to change, on either split, and Lite is slightly the
-more pessimistic of the two.
+- **Hints change the task.** With `hints_text`, "never mentioned" drops to 38.0% on Lite and
+  36.3% on Full. Results with and without hints are not comparable.
+- **The aggregate hides a repo effect.** On Full, "never mentioned" ranges from matplotlib
+  27.7% to pylint 66.7%; `django/django` is 38% of Lite and 39% of Full.
+- **A quarter of Full needs more than one file changed** (569 of 2,294). Lite contains none
+  of them, so every localization result on Lite is about the easier half.
 
-### Also measured
-
-**Hints change the task.** Including `hints_text` drops "never mentioned" from 51.3% to
-38.0% on Lite, and from 48.3% to **36.3%** on Full, roughly doubling the full-path cases
-either way. Results using hints are not comparable to results without them - and papers do
-not always say which they used.
-
-**The aggregate score hides a repo effect.** On Lite, difficulty ranges from astropy 16.7%
-to sphinx 87.5%. On Full the spread narrows to **matplotlib 27.7% - pylint 66.7%**, which
-says most of Lite's extremes were small samples: astropy was 6 instances there and is 68
-here, sphinx 16 against 136. `django/django` is 38% of Lite and 39% of Full either way.
-
-**A quarter of SWE-bench Full needs more than one file changed.** 569 of 2,294 instances
-are multi-file, and Lite contains none of them. Every localization result published on Lite
-is a result about the easier half of the problem, and that is a property of the benchmark
-rather than of any method scored on it.
-
-&#128202; **[Full tables, per-repo breakdown, and the hints comparison &rarr;](docs/RESULTS.md)**
-
----
-
-## How it works
-
-```mermaid
-flowchart LR
-    A["SWE-bench Lite 300<br/>or Full 2,294"] --> B["parse gold files<br/>from reference patches"]
-    B --> C{"single-file fix?"}
-    C -->|"300 / 300"| D["match gold path<br/>against issue text"]
-    D --> E["full path 17.0%"]
-    D --> F["filename 6.0%"]
-    D --> G["module name 25.7%"]
-    D --> H["never mentioned<br/>51.3% Lite / 48.3% Full"]
-    H --> I["retrieval must<br/>INFER the location"]
-
-    style H fill:#dc2626,color:#fff
-    style I fill:#dc2626,color:#fff
-```
-
-Matching is a strict ladder - full path, then basename, then a word-boundary regex on the
-module stem - so each instance lands in exactly one tier and the strongest form present
-wins.
-
-&#128269; **[How the gold files and matching actually work &rarr;](docs/METHOD.md)**
-
----
-
-## Phase 2: so can anything find the file?
-
-Four retrievers, same 300 instances, same candidate set - every source file in the
-repository. Scored as recall@10, cut by the Phase 1 tiers.
+**Phase 2: can anything find the file?** recall@10 on Lite, every source file in the
+repository as the candidate set:
 
 | Tier | n | BM25 | embeddings | 14B locator | 14B reranking BM25 |
 |---|---:|---:|---:|---:|---:|
@@ -108,75 +79,40 @@ repository. Scored as recall@10, cut by the Phase 1 tiers.
 | `stem_only` | 77 | 50.6% | 59.7% | **84.4%** | 70.1% |
 | `not_mentioned` | 154 | **8.4%** | 29.2% | **55.8%** | 17.5% |
 
-**BM25 falls from 74.5% to 8.4%.** On the half of the benchmark that never names the file,
-lexical matching has nothing to match - so a single SWE-bench number largely rewards string
-matching, and the other half is being graded on a retrieval failure.
+- BM25 falls from 74.5% to 8.4% on the half that never names the file.
+- The 14B naming files freely scores 55.8% on `not_mentioned`; reranking BM25's top 30 it
+  scores 17.5%, because BM25's top 30 contains the answer only 23.4% of the time. As a
+  reranker it realises 92.1% of that ceiling.
+- The locator invents **20.9%** of the paths it names.
 
-### The model's advantage is knowing the codebase, not ranking it
+More: [Phase 1 tables](docs/RESULTS.md) · [Phase 2 tables](docs/RESULTS-PHASE2.md) ·
+[method](docs/METHOD.md) · [Phase 2 method](docs/PHASE2.md).
 
-The same 14B scores 55.8% on `not_mentioned` when it names files freely and 17.5% when it
-may only reorder BM25's top-30. It is not a bad reranker - it realises **92.1%** of the
-ceiling it is handed. The problem is the ceiling: on that tier **BM25's entire top-30
-contains the answer just 23.4% of the time**, and the model naming files outright beats
-that outright.
+## Tech stack
 
-It also invents **20.9%** of the paths it names, which is why that is reported beside the
-recall rather than under it.
+- Python 3.11+
+- pandas + PyArrow (SWE-bench parquet from the Hugging Face cache)
+- Okapi BM25 in pure Python
+- Ollama: `nomic-embed-text` (embeddings), `qwen2.5-coder:14b` (locator and reranker)
+- GitHub Trees API for repository file listings (cached under `data/trees/`)
+- pytest, ruff, uv, GitHub Actions
 
-[Full tables, the tuning sweep, and what was tested rather than assumed &rarr;](docs/RESULTS-PHASE2.md)
-
-## Reproduce
+## Run it
 
 ```bash
-python src/data.py              # dataset integrity + gold file extraction
-python src/mention_analysis.py  # every number in this README
-pytest -q                       # 16 tests, no network, no dataset needed
+git clone https://github.com/hammasbuilds/swebench-localization
+cd swebench-localization
+uv sync --all-groups
+
+uv run python src/data.py              # dataset integrity + gold file extraction
+uv run python src/mention_analysis.py  # the Phase 1 numbers
+uv run python run_phase2.py            # Phase 2 retrievers (needs Ollama), resumable
+uv run pytest -q                       # 45 tests, no network, no dataset, no model
 ```
 
-Nothing is hard-coded. Every figure is recomputed from the same functions.
-
----
-
-## Input
-
-![input](docs/images/input.png)
-
-## Output
-
-![output](docs/images/output.png)
-
-*Half the benchmark is a retrieval problem wearing a reasoning problem's clothes. When the
-issue never names the file, a single pass@1 score cannot tell you whether the model reasoned
-badly or was simply shown the wrong file — and a bigger model fed the wrong file still fails.*
-
----
-
-## Also worth reading
-
-| | |
-|---|---|
-| &#128202; **[Results](docs/RESULTS.md)** | Full tables, per-repo difficulty, hints comparison |
-| &#128269; **[Method](docs/METHOD.md)** | Gold file extraction, the matching ladder, determinism |
-| &#128736; **[Problems hit](docs/PROBLEMS.md)** | A hardcoded path, a broken CI cache, and an overcounting regex |
-| &#9888; **[Limitations](docs/LIMITATIONS.md)** | What Phase 1 does and does not establish |
-| &#128202; **[Phase 2 results](docs/RESULTS-PHASE2.md)** | Four retrievers scored as recall@k, cut by discoverability tier |
-| &#128295; **[Phase 2 method](docs/PHASE2.md)** | Candidate sets, BM25 tuning, the two LLM arms |
-| &#128640; **[Future work](docs/FUTURE.md)** | Patch validity, the memorisation test, full SWE-bench |
-
----
-
-## Status
-
-&#9989; **Phase 1 complete** - benchmark discoverability measured.
-
-&#9989; **Phase 2 complete** - BM25, embeddings, an LLM locator and an LLM reranker scored
-as recall@k. See [RESULTS-PHASE2.md](docs/RESULTS-PHASE2.md).
-
-&#128308; **Phase 3 not started** - conditioning patch validity on localization, and testing
-the memorisation hypothesis on repositories the model cannot have seen. See
-[FUTURE.md](docs/FUTURE.md).
-
-## Layout
+SWE-bench Lite (1.2 MB) is read from the local Hugging Face cache (`princeton-nlp/SWE-bench_Lite`);
+install the `fetch` extra (`datasets`) and load it once if it is not there. Phase 2 outputs are committed
+in `data/phase2/`.
 
 ```
 src/data.py               load from HF cache, parse gold files from patches
@@ -185,34 +121,8 @@ src/trees.py              repository file listings via the Trees API, cached
 src/retrieval.py          BM25, embeddings, LLM locator, LLM reranker
 src/evaluate.py           recall@k by tier, fabrication rate, path resolution
 run_phase2.py             Phase 2 driver, resumable per instance
-tests/                    45 tests, no network, no dataset, no model
-docs/                     detailed documentation
-data/sources.json         provenance, counts, checksum
 ```
-
-## Stack
-
-`Python 3.11+` &middot; `pandas` &middot; `pyarrow` &middot; `Okapi BM25 (pure Python)`
-&middot; `nomic-embed-text` &middot; `qwen2.5-coder:14b` via `Ollama`
-&middot; `GitHub Trees API` &middot; `pytest` &middot; `ruff` &middot; `GitHub Actions`
-&middot; dataset via `Hugging Face Hub`
-
-## Keywords
-
-SWE-bench &middot; SWE-bench Lite &middot; bug localization &middot; fault localization
-&middot; code retrieval &middot; LLM benchmark &middot; benchmark evaluation &middot;
-benchmark contamination &middot; retrieval vs reasoning &middot; automated program repair
-&middot; issue-to-file mapping &middot; coding agent evaluation &middot; AI software
-engineering &middot; LLM evaluation harness &middot; reproducible benchmarks &middot; BM25
-
-## References
-
-Jimenez, C. E., Yang, J., Wettig, A., Yao, S., Pei, K., Press, O., & Narasimhan, K.
-**SWE-bench: Can Language Models Resolve Real-World GitHub Issues?** *ICLR 2024.*
-
-&#9888; Citation written from the standard reference - confirm against the paper before
-relying on it.
 
 ## Licence
 
-MIT - see [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE). SWE-bench (Jimenez et al., ICLR 2024) is MIT.

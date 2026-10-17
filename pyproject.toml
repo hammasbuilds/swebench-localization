@@ -9,7 +9,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# The dashboard. Kept optional so CI installs neither streamlit nor altair.
 # Only needed if the dataset is NOT already in the local Hugging Face cache.
 fetch = ["datasets>=2.19"]
 

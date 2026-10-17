@@ -70,5 +70,4 @@ the spread is the point, not any single row.
 
 ```bash
 python src/mention_analysis.py
-streamlit run ui/app.py    # toggle hints, filter repos, inspect single instances
 ```
